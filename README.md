@@ -1,4 +1,4 @@
-# Trimet Crime Prevention Plan
+# Trimet Crime Optimization Model
 
 ### Authors
 - Girum Wondemagegn
