@@ -1,0 +1,146 @@
+---
+title: "Example problem"
+output: pdf_document
+date: "`r Sys.Date()`"
+---
+
+
+
+$$
+ \text{Let }x_i \text{ represent the number of officers allocated to region } x_i \text{ where } x_i \text{ is one of the regions.} \\\\
+ \begin{split}
+ \begin{aligned}
+\text{Decision Variables: }\\
+x1:&\ \text{Number of security personnel allocated to North}\\
+x2:&\ \text{Number of security personnel allocated to South}\\
+x3:&\ \text{Number of security personnel allocated to East}\\
+x4:&\ \text{Number of security personnel allocated to West}\\
+x5:&\ \text{Number of security personnel allocated to Northwest}\\
+x6:&\ \text{Number of security personnel allocated to Southwest}\\
+x7:&\ \text{Number of security personnel allocated to Northeast}\\
+x8:&\ \text{Number of security personnel allocated to Southeast}\\
+  \end{aligned}
+  \end{split}
+$$
+
+
+
+$$
+\begin{split}
+\begin{aligned}
+
+\text{Objective Function: }\\&
+\text{To prevent possible crime and security incidents, we aim to maximize the allocation of security officers to the Portland regions with higher crime Since we're limited by the maximum officers per region, our objective is to distribute the officers effectively across all regions. The objective function can be a simple summation of officers allocated because we will manage the allocation limits through constraints.}\\
+\end{aligned}
+\end{split}
+
+$$
+
+To prevent possible crime and security incidents, we aim to maximize the allocation of security officers to the Portland regions with higher crime. Since we're limited by the number of officers, our objective is to distribute the officers effectively across all regions. The objective function can be a simple summation of officers allocated because we will manage the allocation limits through constraints.
+
+$$
+\begin{split}
+\begin{aligned}
+
+\text{Max }\sum_{i} x_i\\
+\end{aligned}
+\end{split}
+
+$$
+
+Allocation Limits: For each region, the number of officers allocated should not exceed the maximum number based on the crime score proportion.
+If Ci is the crime score of region i and Ctotal is the total crime score, and O is the total number of officers, the max number of officers for region i will be Ci divided by C total multipled by O. The constraint for each regions will be xi less than Ci/Ctotal * O
+
+$$
+\begin{split}
+\begin{aligned}
+\text{Max }\sum_{i} x_i&&\text{[Allocates all personnel] }\\
+\ \frac{Count_i}{Count_{\text{total}}} \times O -1 \leq x_i \leq \frac{Count_i}{Count_{\text{total}}} \times O +1 &&\text{[Porportional constraint for each region with upper and lower bounds] }\\
+\sum_{i} x_i \leq O &&\text{[Cannot exceed total officers] }\\
+\sum_{i} x_i = O &&\text{[All available officers must be allocated] }\\
+x_i \geq O &&\text{[Non-negativity constraint] }\\
+\end{aligned}
+\end{split}
+
+$$
+
+### Solving the model using R 
+
+```{r}
+# Insert your code in this code chunk.
+# Production plan example
+
+library(kableExtra, quietly = TRUE)
+library(ROI, quietly = TRUE)
+library(ROI.plugin.glpk, quietly = TRUE)
+library(ompr, quietly = TRUE)
+library(ompr.roi, quietly = TRUE)
+
+# Example Crime Score Index
+
+count_score <- c(N = 1829, S = 181, E = 359, W = 583, NW = 773, SW = 3582, NE = 3878, SE = 6262)
+total_count_score <- sum(count_score)
+num_officers <- 346
+
+
+# Model
+count_model <- MIPModel() |>
+  add_variable(x[i], i = names(count_score), lb = 0, type = "integer") |>
+  
+  # Objective: Minimize the negative impact of  crime 
+  #(maximize allocation officers)
+  set_objective(sum_expr(count_score[i] * x[i], i = names(count_score)), "max") |>
+  
+  # Constraint: Total officers allocated should be greater than zero
+  add_constraint(sum_expr(x[i], i = names(count_score)) >= 0) |>
+  add_constraint(sum_expr(x[i], i = names(count_score)) == num_officers) |>
+
+  
+  # Constraints: Officers for each region are within a range proportional to its Count
+  # it accounts for rounding issues in the model.
+  add_constraint(x["N"] <= num_officers * count_score["N"] / total_count_score + 1) |>
+  add_constraint(x["N"] >= num_officers * count_score["N"] / total_count_score - 1) |>
+
+  add_constraint(x["S"] <= num_officers * count_score["S"] / total_count_score + 1) |>
+  add_constraint(x["S"] >= num_officers * count_score["S"] / total_count_score - 1) |>
+  
+  add_constraint(x["E"] <= num_officers * count_score["E"] / total_count_score + 1) |>
+  add_constraint(x["E"] >= num_officers * count_score["E"] / total_count_score - 1) |>
+  
+  add_constraint(x["W"] <= num_officers * count_score["W"] / total_count_score + 1) |>
+  add_constraint(x["W"] >= num_officers * count_score["W"] / total_count_score - 1) |>
+
+  add_constraint(x["NW"] <= num_officers * count_score["NW"] / total_count_score + 1) |>
+  add_constraint(x["NW"] >= num_officers * count_score["NW"] / total_count_score - 1) |>
+
+  add_constraint(x["SW"] <= num_officers * count_score["SW"] / total_count_score + 1) |>
+  add_constraint(x["SW"] >= num_officers * count_score["SW"] / total_count_score - 1) |>
+  
+  add_constraint(x["NE"] <= num_officers * count_score["NE"] / total_count_score + 1) |>
+  add_constraint(x["NE"] >= num_officers * count_score["NE"] / total_count_score - 1) |>
+  
+  add_constraint(x["SE"] <= num_officers * count_score["SE"] / total_count_score + 1) |>
+  add_constraint(x["SE"] >= num_officers * count_score["SE"] / total_count_score - 1)
+
+# Solve the model
+count_result <- solve_model(count_model, with_ROI(solver = "glpk"))
+
+# Print the solution
+print(count_result$solution)
+
+
+regions_count_solution <- rbind(count_result$solution)
+
+colnames(regions_count_solution)<-list("North", "South", 
+                              "East", "West",
+                              "Northwest", "Southwest",
+                              "Northeast", "Southeast")
+
+rownames(regions_count_solution)<-list("Incident Count Allocation Mix")
+
+kbl(regions_count_solution, booktabs=T,
+    caption="Solved Allocation Plan") |>
+  kable_styling(latex_options = "hold_position")
+```
+
+### Interpretation of results:
