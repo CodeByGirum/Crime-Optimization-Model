@@ -1,4 +1,3 @@
-readme_content = """
 # Trimet Crime Prevention Plan
 
 ### Authors
