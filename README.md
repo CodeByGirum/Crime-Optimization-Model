@@ -1,11 +1,5 @@
 # Trimet Crime Optimization Model
 
-### Authors
-- Girum Wondemagegn
-- Susan Dawkins
-- Musawer Aryan
-- Mario Ardito
-
 ### Date
 December 10, 2023
 
